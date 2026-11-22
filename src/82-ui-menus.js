@@ -154,9 +154,9 @@ GF.UI.updateBootInfo = function () {
   set('#gt-chip-maps', s.maps);
   set('#gt-chip-items', s.items);
   const v = GF.$('#boot-version');
-  if (v) v.textContent = 'GORE TOWN \u00b7 UPDATE BETA 2.2 \u00b7 ELEVENLABS AUDIO \u00b7 SINGLE FILE';
+  if (v) v.textContent = 'GORE TOWN \u00b7 UPDATE 1.2 \u00b7 ELEVENLABS AUDIO \u00b7 SINGLE FILE';
   const b = GF.$('#boot-build');
-  if (b) b.textContent = '2.2';
+  if (b) b.textContent = '1.2';
   const mc = GF.$('#menu-mapcount');
   if (mc) mc.textContent = s.maps;
   set('#sys-maps', s.maps);

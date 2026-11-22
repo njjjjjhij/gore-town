@@ -210,10 +210,13 @@ GF.Player = {
     /* look */
     let dx = 0, dy = 0;
     if (mobile) {
+      /* the pad reports raw pixels; convert to radians per pixel so a full
+         screen-width swipe is roughly a half turn at sensitivity 1 */
       dx = GF.touch.lookDX; dy = GF.touch.lookDY;
       GF.touch.lookDX = 0; GF.touch.lookDY = 0;
-      dx *= GF.settings.touchSensitivity * 1.6;
-      dy *= GF.settings.touchSensitivity * 1.6;
+      const ts = 0.0026 * GF.settings.touchSensitivity;
+      dx *= ts;
+      dy *= ts;
     } else {
       dx = GF.mouse.dx; dy = GF.mouse.dy;
       dx *= 0.0022 * GF.settings.sensitivity;

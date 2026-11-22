@@ -6,8 +6,8 @@
 
 const GF = {
   name: 'GORE TOWN',
-  version: '2.2.0-beta',
-  build: 'update-beta',
+  version: '1.2.0',
+  build: 'update-1.2',
   state: 'boot',          // boot | menu | loading | play | pause | dead
   device: 'pc',           // pc | mobile  (asked on the title screen)
   quality: 'high',

@@ -212,23 +212,34 @@ GF.UI = {
     const stick = GF.$('#stick-move');
     const knob = GF.$('#stick-move-knob');
     const look = GF.$('#look-zone');
-    if (!stick || !look) return;
+    const moveZone = GF.$('#move-zone');
+    if (!look) return;
 
-    const R = 54;
+    const R = 58;
     const center = { x: 0, y: 0 };
     let moveId = null, lookId = null;
     let lastLX = 0, lastLY = 0;
 
-    const startMove = (e) => {
-      if (moveId !== null) return;
-      e.preventDefault();
-      const t = e.changedTouches[0];
-      moveId = t.identifier;
-      const r = stick.getBoundingClientRect();
-      center.x = r.left + r.width / 2;
-      center.y = r.top + r.height / 2;
-      updateMove(t);
+    /* the stick is a floating pad: it jumps to wherever the left thumb lands
+       so the player never has to find a fixed circle in the middle of a fight */
+    const stickHome = () => {
+      if (stick) {
+        stick.style.left = ''; stick.style.top = ''; stick.style.bottom = '';
+        stick.classList.remove('active');
+      }
+      if (knob) knob.style.transform = 'translate(0,0)';
+    };
+    const stickPlace = (x, y) => {
+      if (!stick) return;
+      const half = (stick.offsetWidth || 150) / 2;
+      const px = GF.clamp(x, half + 4, window.innerWidth - half - 4);
+      const py = GF.clamp(y, half + 4, window.innerHeight - half - 4);
+      stick.style.left = (px - half) + 'px';
+      stick.style.top = (py - half) + 'px';
+      stick.style.bottom = 'auto';
       stick.classList.add('active');
+      center.x = px;
+      center.y = py;
     };
     const updateMove = (t) => {
       let dx = t.clientX - center.x, dy = t.clientY - center.y;
@@ -237,43 +248,58 @@ GF.UI = {
       if (knob) knob.style.transform = 'translate(' + dx.toFixed(1) + 'px,' + dy.toFixed(1) + 'px)';
       GF.touch.moveX = GF.clamp(dx / R, -1, 1);
       GF.touch.moveY = GF.clamp(-dy / R, -1, 1);
-      GF.touch.sprint = (dy < -R * 0.7);
+      GF.touch.sprint = (dy < -R * 0.8);
     };
-    const endMove = (e) => {
-      let ended = false;
-      for (const t of e.changedTouches) if (t.identifier === moveId) ended = true;
-      if (!ended) return;
+    const resetMove = () => {
       moveId = null;
       GF.touch.moveX = 0; GF.touch.moveY = 0; GF.touch.sprint = false;
       if (knob) knob.style.transform = 'translate(0,0)';
-      stick.classList.remove('active');
+      stickHome();
     };
-    stick.addEventListener('touchstart', startMove, { passive: false });
-    stick.addEventListener('touchmove', (e) => {
-      let handled = false;
-      for (const t of e.changedTouches) if (t.identifier === moveId) { updateMove(t); handled = true; }
-      if (handled) e.preventDefault();
-    }, { passive: false });
-    stick.addEventListener('touchend', endMove);
-    stick.addEventListener('touchcancel', endMove);
+    const startMove = (e) => {
+      if (moveId !== null) return;
+      if (!e.changedTouches || !e.changedTouches.length) return;
+      const t = e.changedTouches[0];
+      moveId = t.identifier;
+      stickPlace(t.clientX, t.clientY);
+      updateMove(t);
+      e.preventDefault();
+    };
+    const endMove = (e) => {
+      for (const t of e.changedTouches) if (t.identifier === moveId) { resetMove(); return; }
+    };
+    const movePad = moveZone || stick;
+    if (movePad) {
+      movePad.addEventListener('touchstart', startMove, { passive: false });
+      movePad.addEventListener('touchmove', (e) => {
+        let handled = false;
+        for (const t of e.changedTouches) if (t.identifier === moveId) { updateMove(t); handled = true; }
+        if (handled) e.preventDefault();
+      }, { passive: false });
+      movePad.addEventListener('touchend', endMove);
+      movePad.addEventListener('touchcancel', endMove);
+    }
 
     look.addEventListener('touchstart', (e) => {
-      e.preventDefault();
       if (lookId !== null) return;
+      if (!e.changedTouches || !e.changedTouches.length) return;
       const t = e.changedTouches[0];
       lookId = t.identifier; lastLX = t.clientX; lastLY = t.clientY;
+      e.preventDefault();
     }, { passive: false });
     look.addEventListener('touchmove', (e) => {
-      e.preventDefault();
+      let handled = false;
       for (const t of e.changedTouches) {
         if (t.identifier !== lookId) continue;
         const dx = t.clientX - lastLX, dy = t.clientY - lastLY;
-        if (Math.abs(dx) < 180 && Math.abs(dy) < 180) {
-          GF.touch.lookDX += dx * 1.15;
-          GF.touch.lookDY += dy * 1.15;
-        }
         lastLX = t.clientX; lastLY = t.clientY;
+        handled = true;
+        /* drop warped deltas from a jammed touch stream */
+        if (Math.abs(dx) > 260 || Math.abs(dy) > 260) continue;
+        GF.touch.lookDX += dx;
+        GF.touch.lookDY += dy;
       }
+      if (handled) e.preventDefault();
     }, { passive: false });
     const endLook = (e) => {
       for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null;
@@ -281,6 +307,19 @@ GF.UI = {
     look.addEventListener('touchend', endLook);
     look.addEventListener('touchcancel', endLook);
     look.addEventListener('contextmenu', (e) => e.preventDefault());
+    /* drag-look with a mouse as well, so touch mode is testable on desktop */
+    look.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      lookId = -1; lastLX = e.clientX; lastLY = e.clientY;
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (lookId !== -1) return;
+      GF.touch.lookDX += e.clientX - lastLX;
+      GF.touch.lookDY += e.clientY - lastLY;
+      lastLX = e.clientX; lastLY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => { if (lookId === -1) lookId = null; });
 
     const bindHold = (id, on) => {
       const el = GF.$(id);
@@ -306,7 +345,24 @@ GF.UI = {
       GF.touch.fire = v;
       if (v && navigator.vibrate) navigator.vibrate(6);
     });
-    bindHold('#btn-aim', (v) => { GF.touch.aim = v; });
+    /* aim latches: tap once to raise the sights, tap again to drop them */
+    const aimBtn = GF.$('#btn-aim');
+    const setAim = (v) => {
+      GF.touch.aim = v;
+      if (aimBtn) {
+        aimBtn.classList.toggle('latched', v);
+        aimBtn.classList.toggle('down', v);
+      }
+    };
+    if (aimBtn) {
+      const flipAim = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        setAim(!GF.touch.aim);
+        if (navigator.vibrate) navigator.vibrate(8);
+      };
+      aimBtn.addEventListener('touchstart', flipAim, { passive: false });
+      aimBtn.addEventListener('mousedown', flipAim);
+    }
     bindHold('#btn-lean-l', (v) => { GF.touch.lean = v ? -1 : 0; });
     bindHold('#btn-lean-r', (v) => { GF.touch.lean = v ? 1 : 0; });
 
@@ -454,8 +510,10 @@ GF.TouchReset = function () {
   GF.touch.fire = false; GF.touch.aim = false; GF.touch.lean = 0; GF.touch.sprint = false;
   const k = GF.$('#stick-move-knob');
   if (k) k.style.transform = 'translate(0,0)';
+  const s = GF.$('#stick-move');
+  if (s) { s.style.left = ''; s.style.top = ''; s.style.bottom = ''; s.classList.remove('active'); }
   for (const id of ['#btn-fire', '#btn-aim', '#btn-lean-l', '#btn-lean-r']) {
     const b = GF.$(id);
-    if (b) b.classList.remove('down');
+    if (b) b.classList.remove('down', 'latched');
   }
 };

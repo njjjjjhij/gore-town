@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#08080a">
 <meta name="description" content="Gore Town — a single-file sandbox of ragdoll physics, brutal gore and thousands of guns, objects and maps.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='8' fill='%23a4161a'/%3E%3Ccircle cx='12' cy='13' r='2.4' fill='%23e63946'/%3E%3Cpath d='M16 24c3 0 6-2 6-5 0-2-3-4-6-4s-6 2-6 4c0 3 3 5 6 5z' fill='%236b0f13'/%3E%3Cpath d='M22 6l3 5-4 1z' fill='%23e63946'/%3E%3C/svg%3E">
-<title>GORE TOWN — Update Beta 2.2</title>
+<title>GORE TOWN — Update 1.2</title>
 <style>
 :root{
   --bg:#0b0d10; --panel:#12151a; --panel2:#171b21; --line:#272d36;
@@ -16,8 +16,8 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;height:100dvh;overflow:hidden;background:var(--bg);color:var(--ink);
   font-family:"Barlow Condensed","Roboto Condensed","Arial Narrow",system-ui,-apple-system,"Segoe UI",sans-serif;
-  user-select:none;-webkit-user-select:none;overscroll-behavior:none;touch-action:none}
-canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block;background:#05070a}
+  user-select:none;-webkit-user-select:none;overscroll-behavior:none;touch-action:manipulation}
+canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block;background:#05070a;touch-action:none}
 button{font-family:inherit;color:inherit;cursor:pointer}
 #ui{position:fixed;inset:0;pointer-events:none;z-index:10}
 #ui .clickable,#ui button,#ui input,#ui select{pointer-events:auto}
@@ -92,49 +92,64 @@ button{font-family:inherit;color:inherit;cursor:pointer}
 #fps{position:absolute;left:22px;top:70px;font-family:ui-monospace,monospace;font-size:11px;color:var(--amber);letter-spacing:.1em}
 
 /* ---------------- touch controls ---------------- */
-#touch{position:absolute;inset:0;display:none}
+#touch{position:absolute;inset:0;display:none;pointer-events:none;z-index:2}
 #touch.on{display:block}
-#stick-move{position:absolute;left:max(20px,env(safe-area-inset-left));bottom:calc(100px + env(safe-area-inset-bottom));
-  width:138px;height:138px;border-radius:50%;border:1px solid rgba(232,228,220,.22);
-  background:radial-gradient(circle at 50% 50%,rgba(232,228,220,.05),rgba(10,12,15,.34));touch-action:none}
-#stick-move.active{border-color:rgba(232,228,220,.45)}
+/* the look and move pads are plain divs, so they need pointer-events of their
+   own: #ui disables them globally and only re-enables buttons and inputs */
+#look-zone{position:absolute;inset:0;touch-action:none;pointer-events:auto}
+#move-zone{position:absolute;left:0;top:0;width:44%;height:100%;touch-action:none;pointer-events:auto}
+#stick-move{position:absolute;left:max(10px,env(safe-area-inset-left));bottom:calc(96px + env(safe-area-inset-bottom));
+  width:122px;height:122px;border-radius:50%;border:1px solid rgba(232,228,220,.24);
+  background:radial-gradient(circle at 50% 50%,rgba(232,228,220,.07),rgba(10,12,15,.36));
+  touch-action:none;pointer-events:none;opacity:.7;transition:opacity .15s}
+#stick-move.active{border-color:rgba(232,228,220,.55);opacity:1}
 #stick-move:before,#stick-move:after{content:"";position:absolute;left:50%;top:50%;background:rgba(232,228,220,.12)}
 #stick-move:before{width:1px;height:70%;transform:translate(-50%,-50%)}
 #stick-move:after{height:1px;width:70%;transform:translate(-50%,-50%)}
-#stick-move-knob{position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;
-  background:rgba(232,228,220,.22);border:1px solid rgba(232,228,220,.4);transition:transform .04s linear}
-#look-zone{position:absolute;right:0;top:0;width:55%;height:100%;touch-action:none}
-.tbtn{position:absolute;border-radius:50%;border:1px solid rgba(232,228,220,.28);background:rgba(12,15,19,.5);
-  color:var(--ink);font-size:10px;letter-spacing:.06em;display:flex;align-items:center;justify-content:center;
-  touch-action:none;backdrop-filter:blur(2px)}
-.tbtn.down{background:rgba(200,69,47,.55);border-color:#e8a090}
-.tbtn.latched{background:rgba(216,162,74,.5);border-color:var(--amber)}
-#btn-fire{right:32px;bottom:116px;width:92px;height:92px;font-size:12px;border-color:rgba(200,69,47,.7)}
-#btn-aim{right:138px;bottom:150px;width:66px;height:66px}
-#btn-reload{right:38px;bottom:224px;width:58px;height:58px}
-#btn-jump{right:146px;bottom:74px;width:58px;height:58px}
-#btn-crouch{right:214px;bottom:120px;width:54px;height:54px}
-#btn-lean-l{right:270px;bottom:180px;width:48px;height:48px}
-#btn-lean-r{right:210px;bottom:196px;width:48px;height:48px}
-#btn-grenade{right:284px;bottom:110px;width:50px;height:50px}
-#btn-interact{right:210px;bottom:60px;width:56px;height:56px}
-#btn-swap{left:max(20px,env(safe-area-inset-left));bottom:calc(250px + env(safe-area-inset-bottom));width:64px;height:46px;border-radius:6px}
-#btn-menu{left:max(20px,env(safe-area-inset-left));top:calc(96px + env(safe-area-inset-top));width:56px;height:40px;border-radius:4px}
-#btn-pause{left:max(20px,env(safe-area-inset-left));top:calc(146px + env(safe-area-inset-top));width:56px;height:40px;border-radius:4px}
-#btn-fire{right:max(26px,env(safe-area-inset-right));bottom:calc(110px + env(safe-area-inset-bottom))}
-#btn-aim{right:max(128px,env(safe-area-inset-right));bottom:calc(146px + env(safe-area-inset-bottom))}
-#btn-jump{right:max(140px,env(safe-area-inset-right));bottom:calc(68px + env(safe-area-inset-bottom))}
-#btn-crouch{right:max(208px,env(safe-area-inset-right));bottom:calc(116px + env(safe-area-inset-bottom))}
-#btn-interact{right:max(206px,env(safe-area-inset-right));bottom:calc(56px + env(safe-area-inset-bottom))}
-#btn-reload{right:max(34px,env(safe-area-inset-right));bottom:calc(220px + env(safe-area-inset-bottom))}
-#btn-grenade{right:max(282px,env(safe-area-inset-right));bottom:calc(112px + env(safe-area-inset-bottom))}
-#btn-lean-l{right:max(268px,env(safe-area-inset-right));bottom:calc(182px + env(safe-area-inset-bottom))}
-#btn-lean-r{right:max(208px,env(safe-area-inset-right));bottom:calc(198px + env(safe-area-inset-bottom))}
+#stick-move-knob{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:50%;
+  background:rgba(232,228,220,.24);border:1px solid rgba(232,228,220,.45);transition:transform .04s linear}
+.tbtn{position:absolute;border-radius:50%;border:1px solid rgba(232,228,220,.3);background:rgba(12,15,19,.55);
+  color:var(--ink);font-size:10px;font-weight:600;letter-spacing:.06em;display:flex;align-items:center;
+  justify-content:center;text-align:center;line-height:1.1;padding:0 6px;
+  touch-action:none;pointer-events:auto;backdrop-filter:blur(3px);box-shadow:0 3px 12px rgba(0,0,0,.45)}
+.tbtn.down{background:rgba(200,69,47,.6);border-color:#e8a090}
+.tbtn.latched{background:rgba(216,162,74,.55);border-color:var(--amber);color:#1b1206}
+/* right thumb: fire anchors the corner, the rest wraps around it in two
+   columns that leave the bottom-left corner clear for the move pad */
+#btn-fire{right:max(20px,env(safe-area-inset-right));bottom:calc(92px + env(safe-area-inset-bottom));
+  width:100px;height:100px;font-size:13px;letter-spacing:.1em;border-color:rgba(200,69,47,.75)}
+#btn-aim{right:max(132px,env(safe-area-inset-right));bottom:calc(150px + env(safe-area-inset-bottom));width:70px;height:70px;font-size:11px}
+#btn-reload{right:max(22px,env(safe-area-inset-right));bottom:calc(206px + env(safe-area-inset-bottom));width:60px;height:60px}
+#btn-jump{right:max(130px,env(safe-area-inset-right));bottom:calc(56px + env(safe-area-inset-bottom));width:62px;height:62px}
+#btn-crouch{right:max(200px,env(safe-area-inset-right));bottom:calc(160px + env(safe-area-inset-bottom));width:58px;height:58px}
+#btn-interact{right:max(196px,env(safe-area-inset-right));bottom:calc(86px + env(safe-area-inset-bottom));width:58px;height:58px}
+#btn-grenade{right:max(104px,env(safe-area-inset-right));bottom:calc(220px + env(safe-area-inset-bottom));width:54px;height:54px}
+/* left thumb: move pad plus the rarely used actions above it */
+#btn-swap{left:max(10px,env(safe-area-inset-left));bottom:calc(286px + env(safe-area-inset-bottom));width:74px;height:42px;border-radius:8px}
+#btn-lean-l{left:max(10px,env(safe-area-inset-left));bottom:calc(232px + env(safe-area-inset-bottom));width:56px;height:44px;border-radius:8px}
+#btn-lean-r{left:max(72px,env(safe-area-inset-left));bottom:calc(232px + env(safe-area-inset-bottom));width:56px;height:44px;border-radius:8px}
+#btn-menu{left:max(10px,env(safe-area-inset-left));top:calc(92px + env(safe-area-inset-top));width:64px;height:42px;border-radius:6px}
+#btn-pause{left:max(10px,env(safe-area-inset-left));top:calc(142px + env(safe-area-inset-top));width:64px;height:42px;border-radius:6px}
 .tbtn:active,.tbtn.down{transform:scale(.96)}
 .mini-txt{font-size:9px;line-height:1.1;text-align:center;padding:0 4px}
+/* narrow phones keep the same layout, just smaller targets */
+@media (max-width:374px){
+  #btn-fire{width:88px;height:88px;bottom:calc(84px + env(safe-area-inset-bottom))}
+  #btn-aim{width:62px;height:62px;right:max(118px,env(safe-area-inset-right))}
+  #btn-jump{width:56px;height:56px;right:max(116px,env(safe-area-inset-right))}
+  #btn-crouch{width:52px;height:52px;right:max(180px,env(safe-area-inset-right))}
+  #btn-interact{width:52px;height:52px;right:max(176px,env(safe-area-inset-right))}
+  #btn-grenade{width:48px;height:48px;right:max(92px,env(safe-area-inset-right))}
+  #btn-reload{width:54px;height:54px}
+  #stick-move{width:112px;height:112px;left:max(8px,env(safe-area-inset-left))}
+  #btn-lean-l,#btn-lean-r{width:50px;height:40px}
+  #btn-lean-r{left:max(64px,env(safe-area-inset-left))}
+  #btn-menu,#btn-pause{width:58px;height:38px}
+}
 
 /* ---------------- boot / title ---------------- */
 #boot{position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;overflow:auto;
+  -webkit-overflow-scrolling:touch;touch-action:pan-y;
   background:radial-gradient(ellipse at 50% 30%,rgba(30,20,18,.55),rgba(5,6,8,.96) 70%),
              linear-gradient(180deg,rgba(6,7,9,.65),rgba(6,7,9,.94));pointer-events:auto}
 #boot .frame{max-width:1120px;margin:auto;padding:44px 30px 30px;width:100%}
@@ -655,6 +670,7 @@ h1.title span{display:block;color:transparent;-webkit-text-stroke:2px var(--hot)
 
   <div id="touch">
     <div id="look-zone"></div>
+    <div id="move-zone"></div>
     <div id="stick-move"><div id="stick-move-knob"></div></div>
     <button class="tbtn" id="btn-fire">FIRE</button>
     <button class="tbtn" id="btn-aim">AIM</button>
@@ -766,7 +782,7 @@ h1.title span{display:block;color:transparent;-webkit-text-stroke:2px var(--hot)
           <span class="gt-mark"></span>
           <div>
             <h1 class="gt-logo">GORE<span>TOWN</span></h1>
-            <p class="gt-sub">SANDBOX OF MEAT &amp; PHYSICS &middot; UPDATE BETA <b id="boot-build">2.2</b></p>
+            <p class="gt-sub">SANDBOX OF MEAT &amp; PHYSICS &middot; UPDATE <b id="boot-build">1.2</b></p>
           </div>
         </div>
         <div class="gt-chips">
@@ -846,7 +862,7 @@ h1.title span{display:block;color:transparent;-webkit-text-stroke:2px var(--hot)
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M6 6a8 8 0 1012 0"/></svg><span>QUIT</span>
           </button>
         </nav>
-        <div id="boot-version">GORE TOWN &middot; UPDATE BETA 2.2 &middot; ELEVENLABS AUDIO &middot; SINGLE FILE</div>
+        <div id="boot-version">GORE TOWN &middot; UPDATE 1.2 &middot; ELEVENLABS AUDIO &middot; SINGLE FILE</div>
       </div>
 
       <div id="gt-modal" class="gt-modal">
