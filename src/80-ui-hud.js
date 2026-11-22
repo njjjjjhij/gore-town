@@ -280,32 +280,53 @@ GF.UI = {
       movePad.addEventListener('touchcancel', endMove);
     }
 
-    look.addEventListener('touchstart', (e) => {
-      if (lookId !== null) return;
-      if (!e.changedTouches || !e.changedTouches.length) return;
-      const t = e.changedTouches[0];
-      lookId = t.identifier; lastLX = t.clientX; lastLY = t.clientY;
-      e.preventDefault();
-    }, { passive: false });
-    look.addEventListener('touchmove', (e) => {
-      let handled = false;
+    /* Look is tracked over the whole touch layer, not just the pad. The fire
+       button keeps its press state, and the same thumb can slide away from it
+       to turn the camera while the trigger is still down, so you can strafe
+       with the left pad, hold fire and track a target at the same time.
+       Window capture is used because the buttons stop propagation. */
+    const looks = new Map();
+    let activeLook = null;
+    const dropLook = (e) => {
       for (const t of e.changedTouches) {
-        if (t.identifier !== lookId) continue;
-        const dx = t.clientX - lastLX, dy = t.clientY - lastLY;
-        lastLX = t.clientX; lastLY = t.clientY;
-        handled = true;
+        looks.delete(t.identifier);
+        if (activeLook === t.identifier) activeLook = null;
+      }
+    };
+    const lookStart = (e) => {
+      if (!e.changedTouches) return;
+      for (const t of e.changedTouches) {
+        if (!e.target || !root || !root.contains(e.target)) continue;
+        if (movePad && movePad.contains(e.target)) continue;
+        if (looks.has(t.identifier)) continue;
+        looks.set(t.identifier, { x: t.clientX, y: t.clientY, ox: t.clientX, oy: t.clientY, on: false });
+      }
+    };
+    const lookMove = (e) => {
+      if (!e.changedTouches) return;
+      for (const t of e.changedTouches) {
+        const L = looks.get(t.identifier);
+        if (!L) continue;
+        const dx = t.clientX - L.x, dy = t.clientY - L.y;
+        L.x = t.clientX; L.y = t.clientY;
+        if (!L.on) {
+          /* ignore the first few pixels so a tap stays a tap */
+          if (Math.hypot(t.clientX - L.ox, t.clientY - L.oy) < 8) continue;
+          if (activeLook !== null) { looks.delete(t.identifier); continue; }
+          L.on = true;
+          activeLook = t.identifier;
+          continue;
+        }
         /* drop warped deltas from a jammed touch stream */
         if (Math.abs(dx) > 260 || Math.abs(dy) > 260) continue;
         GF.touch.lookDX += dx;
         GF.touch.lookDY += dy;
       }
-      if (handled) e.preventDefault();
-    }, { passive: false });
-    const endLook = (e) => {
-      for (const t of e.changedTouches) if (t.identifier === lookId) lookId = null;
     };
-    look.addEventListener('touchend', endLook);
-    look.addEventListener('touchcancel', endLook);
+    window.addEventListener('touchstart', lookStart, { capture: true, passive: true });
+    window.addEventListener('touchmove', lookMove, { capture: true, passive: true });
+    window.addEventListener('touchend', dropLook, true);
+    window.addEventListener('touchcancel', dropLook, true);
     look.addEventListener('contextmenu', (e) => e.preventDefault());
     /* drag-look with a mouse as well, so touch mode is testable on desktop */
     look.addEventListener('mousedown', (e) => {
