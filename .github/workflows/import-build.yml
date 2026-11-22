@@ -1,0 +1,42 @@
+name: Import build
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Tarball URL of the build to import
+        required: true
+      message:
+        description: Commit message
+        required: false
+        default: Import GORE TOWN build
+
+permissions:
+  contents: write
+
+concurrency:
+  group: import-build
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and unpack the build
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/gt.tar.gz" "${{ inputs.url }}"
+          mkdir -p "$RUNNER_TEMP/stage"
+          tar xzf "$RUNNER_TEMP/gt.tar.gz" -C "$RUNNER_TEMP/stage"
+          test -s "$RUNNER_TEMP/stage/index.html"
+          du -sh "$RUNNER_TEMP/stage"
+
+      - name: Commit to the repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cp -a "$RUNNER_TEMP/stage/." .
+          git add -A
+          git commit -m "${{ inputs.message }}" || echo "no changes to commit"
+          git push
